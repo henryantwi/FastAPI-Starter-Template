@@ -53,15 +53,19 @@ def create_first_superuser():
                 email=settings.FIRST_SUPERUSER_EMAIL,
                 hashed_password=hashed_password,
                 is_superuser=True,
+                is_staff=True,
                 is_active=True,
-                username="admin"
+                username="admin",
+                first_name="Generic",
+                last_name="Admin",
+                bio="This is a generic admin user"
             )
             
             session.add(superuser)
             session.commit()
             session.refresh(superuser)
             
-            print(f"✓ Superuser created successfully with email: {settings.FIRST_SUPERUSER_EMAIL}")
+            print(f"✅ Superuser created successfully with email: {settings.FIRST_SUPERUSER_EMAIL}")
             return True
             
     except ValidationError as e:

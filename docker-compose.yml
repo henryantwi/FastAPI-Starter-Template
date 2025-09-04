@@ -18,7 +18,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.second
+      dockerfile: Dockerfile
     container_name: "fastapi-server"
     volumes:
       - .:/app
@@ -43,7 +43,7 @@ services:
         - action: rebuild
           path: ./uv.lock
         - action: rebuild
-          path: ./Dockerfile.second
+          path: ./Dockerfile
 
 volumes:
   postgres_data:
