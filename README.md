@@ -377,7 +377,6 @@ docker run -d \
 
 ```yaml
 # docker-compose.prod.yml
-version: '3.8'
 services:
   app:
     build: .
