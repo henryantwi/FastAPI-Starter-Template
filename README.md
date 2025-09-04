@@ -51,8 +51,8 @@ A production-ready, scalable FastAPI server template featuring comprehensive use
 ### 1. Clone and Setup
 
 ```bash
-git clone <your-repo-url>
-cd fastapi-server
+git clone https://github.com/henryantwi/FastAPI-Starter-Template.git
+cd FastAPI-Starter-Template
 
 # Copy environment templates
 cp .env.example .env
