@@ -5,7 +5,7 @@ from app.api import v1_router
 from app.core.config import settings
 
 app = FastAPI(
-    title="FastAPI Server with SQLModel",
+    title="FastAPI Starter Template",
     version="0.1.0",
     description="A scalable FastAPI server template with SQLModel and Alembic",
     docs_url="/docs" if settings.ENVIRONMENT != "production" else None,

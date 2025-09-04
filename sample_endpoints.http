@@ -1,0 +1,394 @@
+# FastAPI Server Sample REST Endpoints
+# This file contains comprehensive examples of all available REST endpoints
+# Make sure the server is running on http://localhost:8000
+
+### Variables
+@baseUrl = http://localhost:8000
+@apiUrl = {{baseUrl}}/api/v1
+
+# Sample user credentials for testing
+@userEmail = user@example.com
+@userPassword = testpassword123
+@adminEmail = admin@example.com
+@adminPassword = adminpassword123
+
+# =============================================================================
+# ROOT & HEALTH ENDPOINTS
+# =============================================================================
+
+### Get root endpoint
+GET {{baseUrl}}/
+
+### Health check
+GET {{baseUrl}}/health
+
+# =============================================================================
+# AUTHENTICATION ENDPOINTS
+# =============================================================================
+
+### Register a new user
+POST {{apiUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "johndoe",
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}",
+  "first_name": "John",
+  "last_name": "Doe",
+  "bio": "Software developer passionate about FastAPI"
+}
+
+### Login user
+POST {{apiUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+### Test access token (requires authentication)
+# @name loginUser
+POST {{apiUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+###
+@accessToken = {{loginUser.response.body.token.access_token}}
+
+### Test token endpoint
+POST {{apiUrl}}/auth/token/test
+Authorization: Bearer {{accessToken}}
+
+### Refresh access token
+POST {{apiUrl}}/auth/token/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{loginUser.response.body.token.refresh_token}}"
+}
+
+# =============================================================================
+# USER PROFILE ENDPOINTS
+# =============================================================================
+
+### Get user profile
+GET {{apiUrl}}/user
+Authorization: Bearer {{accessToken}}
+
+### Update user profile
+PUT {{apiUrl}}/user
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "first_name": "John Updated",
+  "last_name": "Doe Updated",
+  "username": "johnupdated",
+  "bio": "Updated bio - Senior Software Engineer",
+  "profile_picture": "https://example.com/avatar.jpg"
+}
+
+### Update user password
+PUT {{apiUrl}}/user/reset-password
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "current_password": "{{userPassword}}",
+  "new_password": "newpassword123"
+}
+
+### Delete user profile
+DELETE {{apiUrl}}/user
+Authorization: Bearer {{accessToken}}
+
+# =============================================================================
+# ADMIN ENDPOINTS (Superuser required)
+# =============================================================================
+
+### Admin login (create a superuser first using the script)
+# @name adminLogin
+POST {{apiUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+###
+@adminToken = {{adminLogin.response.body.token.access_token}}
+
+### Get all users (with pagination)
+GET {{apiUrl}}/admin/users?skip=0&limit=10
+Authorization: Bearer {{adminToken}}
+
+### Get all users (with different pagination)
+GET {{apiUrl}}/admin/users?skip=10&limit=5
+Authorization: Bearer {{adminToken}}
+
+### Get user by ID
+GET {{apiUrl}}/admin/users/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{adminToken}}
+
+### Create new user (admin)
+POST {{apiUrl}}/admin/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "username": "newuser",
+  "email": "newuser@example.com",
+  "password": "newuserpassword123",
+  "first_name": "New",
+  "last_name": "User",
+  "bio": "Created by admin",
+  "is_active": true,
+  "is_staff": false,
+  "is_superuser": false
+}
+
+### Update user
+PUT {{apiUrl}}/admin/users/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "first_name": "Updated First Name",
+  "last_name": "Updated Last Name",
+  "email": "updated@example.com",
+  "is_active": true,
+  "is_staff": true
+}
+
+### Update user password (admin)
+PUT {{apiUrl}}/admin/users/550e8400-e29b-41d4-a716-446655440000/password
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "new_password": "newadminsetpassword123"
+}
+
+### Activate user
+PUT {{apiUrl}}/admin/users/550e8400-e29b-41d4-a716-446655440000/activate
+Authorization: Bearer {{adminToken}}
+
+### Deactivate user
+PUT {{apiUrl}}/admin/users/550e8400-e29b-41d4-a716-446655440000/deactivate
+Authorization: Bearer {{adminToken}}
+
+### Promote user to superuser
+PUT {{apiUrl}}/admin/users/550e8400-e29b-41d4-a716-446655440000/promote
+Authorization: Bearer {{adminToken}}
+
+### Demote superuser to regular user
+PUT {{apiUrl}}/admin/users/550e8400-e29b-41d4-a716-446655440000/demote
+Authorization: Bearer {{adminToken}}
+
+### Promote user to staff
+PUT {{apiUrl}}/admin/users/550e8400-e29b-41d4-a716-446655440000/make-staff
+Authorization: Bearer {{adminToken}}
+
+### Remove staff privileges
+PUT {{apiUrl}}/admin/users/550e8400-e29b-41d4-a716-446655440000/remove-staff
+Authorization: Bearer {{adminToken}}
+
+### Get user statistics
+GET {{apiUrl}}/admin/stats
+Authorization: Bearer {{adminToken}}
+
+### Delete user (admin)
+DELETE {{apiUrl}}/admin/users/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{adminToken}}
+
+# =============================================================================
+# STAFF ENDPOINTS (Staff/Superuser required)
+# =============================================================================
+
+### Staff login (user must have is_staff=True or is_superuser=True)
+# @name staffLogin
+POST {{apiUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "staff@example.com",
+  "password": "staffpassword123"
+}
+
+###
+@staffToken = {{staffLogin.response.body.token.access_token}}
+
+### Get all users (staff access - read only)
+GET {{apiUrl}}/staff/users?skip=0&limit=10
+Authorization: Bearer {{staffToken}}
+
+### Get user by ID (staff access)
+GET {{apiUrl}}/staff/users/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{staffToken}}
+
+### Get staff dashboard
+GET {{apiUrl}}/staff/dashboard
+Authorization: Bearer {{staffToken}}
+
+# =============================================================================
+# ERROR HANDLING EXAMPLES
+# =============================================================================
+
+### Test 401 Unauthorized (no token)
+GET {{apiUrl}}/user
+
+### Test 401 Unauthorized (invalid token)
+GET {{apiUrl}}/user
+Authorization: Bearer invalid_token_here
+
+### Test 400 Bad Request (invalid email format)
+POST {{apiUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "invalid-email",
+  "password": "testpassword123"
+}
+
+### Test 400 Bad Request (password too short)
+POST {{apiUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "short"
+}
+
+### Test 400 Bad Request (user already exists)
+POST {{apiUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "existinguser",
+  "email": "{{userEmail}}",
+  "password": "testpassword123"
+}
+
+### Test 400 Bad Request (incorrect login credentials)
+POST {{apiUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "wrongpassword"
+}
+
+### Test 403 Forbidden (regular user accessing admin endpoint)
+GET {{apiUrl}}/admin/users
+Authorization: Bearer {{accessToken}}
+
+### Test 404 Not Found (non-existent user ID)
+GET {{apiUrl}}/admin/users/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{adminToken}}
+
+# =============================================================================
+# ADVANCED SCENARIOS
+# =============================================================================
+
+### Create staff user workflow
+POST {{apiUrl}}/admin/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "username": "staffuser",
+  "email": "staff@example.com",
+  "password": "staffpassword123",
+  "first_name": "Staff",
+  "last_name": "User",
+  "is_active": true,
+  "is_staff": true,
+  "is_superuser": false
+}
+
+### Create superuser workflow
+POST {{apiUrl}}/admin/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "username": "superuser",
+  "email": "super@example.com",
+  "password": "superpassword123",
+  "first_name": "Super",
+  "last_name": "User",
+  "is_active": true,
+  "is_staff": true,
+  "is_superuser": true
+}
+
+### Bulk user operations - Get users with specific pagination
+GET {{apiUrl}}/admin/users?skip=0&limit=50
+Authorization: Bearer {{adminToken}}
+
+### Complete user lifecycle test
+# 1. Create user
+POST {{apiUrl}}/admin/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "username": "lifecycle_user",
+  "email": "lifecycle@example.com",
+  "password": "lifecycle123",
+  "first_name": "Lifecycle",
+  "last_name": "Test",
+  "is_active": true
+}
+
+# 2. Make user staff (use the actual user ID from step 1)
+# PUT {{apiUrl}}/admin/users/{user_id}/make-staff
+
+# 3. Deactivate user
+# PUT {{apiUrl}}/admin/users/{user_id}/deactivate
+
+# 4. Reactivate user
+# PUT {{apiUrl}}/admin/users/{user_id}/activate
+
+# 5. Remove staff privileges
+# PUT {{apiUrl}}/admin/users/{user_id}/remove-staff
+
+# 6. Delete user
+# DELETE {{apiUrl}}/admin/users/{user_id}
+
+# =============================================================================
+# TESTING TIPS
+# =============================================================================
+
+### Example: Get real user ID for testing
+# 1. First login and get token
+# 2. Use admin endpoints to get list of users
+# 3. Copy a real user ID from the response
+# 4. Use that ID in the endpoints marked with placeholder IDs above
+
+### Example: Create test data
+# Use the admin endpoints to create multiple test users with different roles:
+# - Regular user (is_active=true, is_staff=false, is_superuser=false)
+# - Staff user (is_active=true, is_staff=true, is_superuser=false)  
+# - Superuser (is_active=true, is_staff=true, is_superuser=true)
+# - Inactive user (is_active=false)
+
+# =============================================================================
+# NOTES
+# =============================================================================
+
+# 1. Replace placeholder UUIDs (550e8400-e29b-41d4-a716-446655440000) with actual user IDs
+# 2. Create a superuser first using: python scripts/create_superuser.py
+# 3. Update the @adminEmail and @adminPassword variables with actual admin credentials
+# 4. Some endpoints require specific user roles (staff/superuser)
+# 5. JWT tokens expire - refresh them as needed using the refresh endpoint
+# 6. Use the stats endpoint to monitor user counts and verify operations

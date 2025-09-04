@@ -1,4 +1,4 @@
-# FastAPI Server with SQLModel
+# FastAPI Starter Template
 
 A modern, scalable FastAPI server template with SQLModel, Alembic migrations, JWT authentication, and Docker support.
 
