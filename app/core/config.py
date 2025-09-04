@@ -62,6 +62,28 @@ class Settings(BaseSettings):
     def SQLALCHEMY_DATABASE_URI(self) -> str:  # noqa
         return f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
+    # Redis configuration
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: str = ""
+    REDIS_DB: int = 0
+    REDIS_URL: str = ""
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def REDIS_CONNECTION_URL(self) -> str:  # noqa
+        if self.REDIS_URL:
+            return self.REDIS_URL
+        
+        auth_part = f":{self.REDIS_PASSWORD}@" if self.REDIS_PASSWORD else ""
+        return f"redis://{auth_part}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    # Cache settings
+    CACHE_ENABLED: bool = True  # Enable/disable Redis caching
+    CACHE_TTL_SECONDS: int = 300  # 5 minutes default TTL
+    USER_CACHE_TTL_SECONDS: int = 600  # 10 minutes for user data
+    STATS_CACHE_TTL_SECONDS: int = 60  # 1 minute for frequently changing stats
+
     # First superuser configuration
     FIRST_SUPERUSER_EMAIL: EmailStr
     FIRST_SUPERUSER_PASSWORD: str

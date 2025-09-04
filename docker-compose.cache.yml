@@ -1,0 +1,20 @@
+# Docker Compose override for Redis caching
+# Use this with: docker-compose -f docker-compose.yml -f docker-compose.cache.yml up -d
+
+services:
+  app:
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      POSTGRES_SERVER: "db"
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      CACHE_ENABLED: "true"
+      
+  redis:
+    profiles: []  # Remove profiles to make it part of default services

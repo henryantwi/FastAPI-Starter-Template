@@ -4,25 +4,31 @@ from sqlmodel import select
 
 from app.api.deps import SessionDep
 from app.core.security import get_password_hash
+from app.core.redis import cache, cache_result, invalidate_cache_pattern
+from app.core.config import settings
 from app.models.user import User
 from app.schemas.user import UserRegister, UserCreate, UserUpdate
 
 
+@cache_result("user:email", ttl=settings.USER_CACHE_TTL_SECONDS, use_pickle=True)
 def get_user_by_email(session: SessionDep, email: EmailStr) -> User | None:
     statement = select(User).where(User.email == email)
     user = session.exec(statement).first()
     return user
 
 
+@cache_result("user:id", ttl=settings.USER_CACHE_TTL_SECONDS, use_pickle=True)
 def get_user_by_id(session: SessionDep, user_id: uuid.UUID) -> User | None:
     return session.get(User, user_id)
 
 
+@cache_result("users:list", ttl=settings.CACHE_TTL_SECONDS, use_pickle=True)
 def get_users(session: SessionDep, skip: int = 0, limit: int = 100) -> list[User]:
     statement = select(User).offset(skip).limit(limit)
     return session.exec(statement).all()
 
 
+@cache_result("users:count", ttl=settings.CACHE_TTL_SECONDS)
 def get_users_count(session: SessionDep) -> int:
     statement = select(User)
     return len(session.exec(statement).all())
@@ -45,6 +51,10 @@ def create_user(session: SessionDep, user_create: UserRegister):
     session.commit()
     session.refresh(user)
 
+    # Invalidate user-related caches
+    invalidate_cache_pattern("users:*")
+    invalidate_cache_pattern("admin:stats:*")  # Invalidate admin stats
+    
     return user
 
 
@@ -70,6 +80,11 @@ def create_user_by_superuser(session: SessionDep, user_create: UserCreate) -> Us
     session.add(user)
     session.commit()
     session.refresh(user)
+    
+    # Invalidate user-related caches
+    invalidate_cache_pattern("users:*")
+    invalidate_cache_pattern("admin:stats:*")  # Invalidate admin stats
+    
     return user
 
 
@@ -90,6 +105,13 @@ def update_user(session: SessionDep, user_id: uuid.UUID, user_update: UserUpdate
     
     session.commit()
     session.refresh(user)
+    
+    # Invalidate user-related caches
+    invalidate_cache_pattern("users:*")
+    invalidate_cache_pattern("admin:stats:*")  # Invalidate admin stats
+    invalidate_cache_pattern(f"user:id:*:{user_id}")
+    invalidate_cache_pattern(f"user:email:*:{user.email}")
+    
     return user
 
 
@@ -104,6 +126,11 @@ def update_user_password(session: SessionDep, user_id: uuid.UUID, new_password: 
     
     session.commit()
     session.refresh(user)
+    
+    # Invalidate user-related caches
+    invalidate_cache_pattern(f"user:id:*:{user_id}")
+    invalidate_cache_pattern(f"user:email:*:{user.email}")
+    
     return user
 
 
@@ -115,4 +142,11 @@ def delete_user(session: SessionDep, user_id: uuid.UUID) -> bool:
     
     session.delete(user)
     session.commit()
+    
+    # Invalidate user-related caches
+    invalidate_cache_pattern("users:*")
+    invalidate_cache_pattern("admin:stats:*")  # Invalidate admin stats
+    invalidate_cache_pattern(f"user:id:*:{user_id}")
+    invalidate_cache_pattern(f"user:email:*:{user.email}")
+    
     return True

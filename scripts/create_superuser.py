@@ -53,6 +53,7 @@ def create_first_superuser():
                 email=settings.FIRST_SUPERUSER_EMAIL,
                 hashed_password=hashed_password,
                 is_superuser=True,
+                is_staff=True,
                 is_active=True,
                 username="admin"
             )

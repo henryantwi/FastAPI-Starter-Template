@@ -4,6 +4,8 @@ from typing import Any
 from fastapi import APIRouter, status, Depends, HTTPException, Query
 
 from app.api.deps import get_current_active_superuser, get_current_active_staff, SessionDep
+from app.core.redis import cache_result, get_cache_info, invalidate_cache_pattern
+from app.core.config import settings
 from app.crud.user import (
     get_users,
     get_users_count,
@@ -320,15 +322,9 @@ async def remove_staff_privileges(
     return UserPublic.model_validate(user)
 
 
-@routes.get("/stats", description="Get user statistics", status_code=status.HTTP_200_OK)
-async def get_user_stats(
-    session: SessionDep,
-    current_user: User = Depends(get_current_active_superuser),
-) -> dict[str, Any]:
-    """
-    Get user statistics and counts.
-    Only accessible by superusers.
-    """
+@cache_result("admin:stats", ttl=settings.STATS_CACHE_TTL_SECONDS)
+def _get_user_statistics(session: SessionDep) -> dict[str, Any]:
+    """Internal function to get user statistics with caching"""
     from sqlmodel import select, func
     
     # Total users
@@ -360,3 +356,72 @@ async def get_user_stats(
         "staff_users": staff_users,
         "regular_users": regular_users,
     }
+
+
+@routes.get("/stats", description="Get user statistics", status_code=status.HTTP_200_OK)
+async def get_user_stats(
+    session: SessionDep,
+    current_user: User = Depends(get_current_active_superuser),
+) -> dict[str, Any]:
+    """
+    Get user statistics and counts.
+    Only accessible by superusers.
+    Results are cached for faster retrieval.
+    """
+    return _get_user_statistics(session)
+
+
+@routes.get("/cache/info", description="Get cache information", status_code=status.HTTP_200_OK)
+async def get_cache_information(
+    current_user: User = Depends(get_current_active_superuser),
+) -> dict[str, Any]:
+    """
+    Get Redis cache information and statistics.
+    Only accessible by superusers.
+    """
+    cache_info = get_cache_info()
+    return {
+        "cache_info": cache_info,
+        "cache_settings": {
+            "cache_enabled": settings.CACHE_ENABLED,
+            "default_ttl": settings.CACHE_TTL_SECONDS,
+            "user_cache_ttl": settings.USER_CACHE_TTL_SECONDS,
+            "stats_cache_ttl": settings.STATS_CACHE_TTL_SECONDS,
+        }
+    }
+
+
+@routes.post("/cache/clear", description="Clear cache", status_code=status.HTTP_200_OK)
+async def clear_cache(
+    pattern: str = Query(default="*", description="Cache key pattern to clear"),
+    current_user: User = Depends(get_current_active_superuser),
+) -> dict[str, Any]:
+    """
+    Clear cache keys matching the specified pattern.
+    Only accessible by superusers.
+    
+    Common patterns:
+    - "*" - Clear all cache
+    - "users:*" - Clear all user-related cache
+    - "admin:stats:*" - Clear admin statistics cache
+    - "user:id:*" - Clear user ID cache
+    """
+    if not settings.CACHE_ENABLED:
+        return {
+            "message": "Caching is disabled",
+            "pattern": pattern,
+            "keys_cleared": 0
+        }
+    
+    try:
+        cleared_count = invalidate_cache_pattern(pattern)
+        return {
+            "message": f"Cache cleared successfully",
+            "pattern": pattern,
+            "keys_cleared": cleared_count
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear cache: {str(e)}"
+        )

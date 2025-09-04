@@ -15,6 +15,24 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: "redis-cache"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    profiles:
+      - cache
+      - full
+
   app:
     build:
       context: .
@@ -28,12 +46,18 @@ services:
     environment:
       POSTGRES_SERVER: "db"
       POSTGRES_PORT: "5432"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      CACHE_ENABLED: "false"
     env_file:
       - .env
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
+    profiles:
+      - default
     develop:
       watch:
         - action: restart
@@ -45,5 +69,34 @@ services:
         - action: rebuild
           path: ./Dockerfile.second
 
+  app-with-cache:
+    build:
+      context: .
+      dockerfile: Dockerfile.second
+    container_name: "fastapi-server"
+    volumes:
+      - .:/app
+      - /app/.venv  # Exclude .venv from volume mount to preserve container's virtual environment
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_SERVER: "db"
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      CACHE_ENABLED: "true"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - cache
+
 volumes:
   postgres_data:
+  redis_data:
