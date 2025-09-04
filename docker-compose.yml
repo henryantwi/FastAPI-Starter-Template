@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:17.5
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5442:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.second
+    container_name: "fastapi-server"
+    volumes:
+      - .:/app
+      - /app/.venv  # Exclude .venv from volume mount to preserve container's virtual environment
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_SERVER: "db"
+      POSTGRES_PORT: "5432"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: restart
+          path: ./app
+        - action: rebuild
+          path: ./pyproject.toml
+        - action: rebuild
+          path: ./uv.lock
+        - action: rebuild
+          path: ./Dockerfile.second
+
+volumes:
+  postgres_data:
