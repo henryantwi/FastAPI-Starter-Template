@@ -75,3 +75,27 @@ def get_current_active_superuser(current_user: CurrentUser) -> User:
             status_code=403, detail="The user doesn't have enough privileges"
         )
     return current_user
+
+
+def get_current_active_staff(current_user: CurrentUser) -> User:
+    """
+    Dependency to ensure current user has staff privileges.
+    Staff users have elevated permissions but not full admin access.
+    Superusers automatically have staff privileges.
+    """
+    if not current_user.has_staff_privileges:
+        logger.warning(
+            f"Unauthorized staff access attempt by user: {current_user.id}"
+        )
+        raise HTTPException(
+            status_code=403, detail="Staff privileges required"
+        )
+    return current_user
+
+
+def get_current_active_staff_or_superuser(current_user: CurrentUser) -> User:
+    """
+    Dependency to ensure current user has staff or superuser privileges.
+    Alias for get_current_active_staff for clarity.
+    """
+    return get_current_active_staff(current_user)

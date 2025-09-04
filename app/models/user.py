@@ -24,6 +24,7 @@ class User(SQLModel, table=True):
 
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
+    is_staff: bool = Field(default=False)
     last_login_at: Optional[datetime] = Field(default=None)
 
     first_name: Optional[str] = Field(default=None)
@@ -51,6 +52,14 @@ class User(SQLModel, table=True):
         first = self.first_name or ""
         last = self.last_name or ""
         return f"{first} {last}".strip()
+    
+    @property
+    def has_staff_privileges(self) -> bool:
+        """
+        Check if user has staff privileges.
+        Superusers automatically have staff privileges.
+        """
+        return self.is_superuser or self.is_staff
 
 
 class UserAuthProviderToken(SQLModel, table=True):
