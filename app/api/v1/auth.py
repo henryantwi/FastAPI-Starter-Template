@@ -110,3 +110,80 @@ async def register_user(session: SessionDep, user_in: UserRegister) -> Any:
         token=generate_token_response_data(user), user=UserPublic.model_validate(user)
     )
     return register_response
+
+
+@routes.get("/login/google")
+async def google_login(request: Any):
+    """
+    Redirect to Google OAuth login page
+    """
+    from app.core.oauth import oauth
+    from fastapi import Request
+    
+    if not oauth._clients.get('google'):
+        raise HTTPException(
+            status_code=503,
+            detail="Google OAuth not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env"
+        )
+    
+    redirect_uri = settings.GOOGLE_REDIRECT_URI
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+
+@routes.get("/login/google/callback", response_model=AuthResponse)
+async def google_callback(request: Any, session: SessionDep):
+    """
+    Handle Google OAuth callback
+    """
+    from app.core.oauth import oauth
+    from app.crud.user import create_or_update_oauth_user
+    from fastapi import Request
+    
+    if not oauth._clients.get('google'):
+        raise HTTPException(
+            status_code=503,
+            detail="Google OAuth not configured"
+        )
+    
+    try:
+        # Get access token from Google
+        token = await oauth.google.authorize_access_token(request)
+        
+        # Get user info from Google
+        user_info = token.get('userinfo')
+        if not user_info:
+            raise HTTPException(status_code=400, detail="Failed to get user info from Google")
+        
+        email = user_info.get('email')
+        if not email:
+            raise HTTPException(status_code=400, detail="Email not provided by Google")
+        
+        # Create or update user
+        user = create_or_update_oauth_user(
+            session=session,
+            email=email,
+            provider_name='google',
+            access_token=token['access_token'],
+            refresh_token=token.get('refresh_token'),
+            expires_at=None,  # Google tokens typically expire, but we'll handle refresh separately
+            first_name=user_info.get('given_name'),
+            last_name=user_info.get('family_name'),
+            profile_picture=user_info.get('picture')
+        )
+        
+        if not user.is_active:
+            raise HTTPException(status_code=400, detail="Inactive user")
+        
+        # Generate JWT tokens
+        login_response = AuthResponse(
+            token=generate_token_response_data(user),
+            user=UserPublic.model_validate(user)
+        )
+        return login_response
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Authentication failed: {str(e)}"
+        )
+

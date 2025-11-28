@@ -1,10 +1,11 @@
 import uuid
+from datetime import datetime, timezone
 from pydantic import EmailStr
 from sqlmodel import select
 
 from app.api.deps import SessionDep
 from app.core.security import get_password_hash
-from app.models.user import User
+from app.models.user import User, UserAuthProviderToken
 from app.schemas.user import UserRegister, UserCreate, UserUpdate
 
 
@@ -116,3 +117,75 @@ def delete_user(session: SessionDep, user_id: uuid.UUID) -> bool:
     session.delete(user)
     session.commit()
     return True
+
+
+def create_or_update_oauth_user(
+    session: SessionDep,
+    email: str,
+    provider_name: str,
+    access_token: str,
+    refresh_token: str | None = None,
+    expires_at: datetime | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    profile_picture: str | None = None
+) -> User:
+    """Create or update a user from OAuth provider"""
+    
+    # Check if user exists
+    user = get_user_by_email(session, email)
+    
+    if not user:
+        # Create new user
+        user = User(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            profile_picture=profile_picture,
+            is_active=True,
+            hashed_password=None  # OAuth users don't have passwords
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+    else:
+        # Update existing user info if provided
+        if first_name:
+            user.first_name = first_name
+        if last_name:
+            user.last_name = last_name
+        if profile_picture:
+            user.profile_picture = profile_picture
+        
+        user.last_login_at = datetime.now(timezone.utc)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+    
+    # Check if provider token already exists
+    statement = select(UserAuthProviderToken).where(
+        UserAuthProviderToken.user_id == user.id,
+        UserAuthProviderToken.provider_name == provider_name
+    )
+    provider_token = session.exec(statement).first()
+    
+    if provider_token:
+        # Update existing token
+        provider_token.access_token = access_token
+        provider_token.refresh_token = refresh_token
+        provider_token.expires_at = expires_at
+    else:
+        # Create new token
+        provider_token = UserAuthProviderToken(
+            user_id=user.id,
+            provider_name=provider_name,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            expires_at=expires_at
+        )
+        session.add(provider_token)
+    
+    session.commit()
+    session.refresh(user)
+    
+    return user
