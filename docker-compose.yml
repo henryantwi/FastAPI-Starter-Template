@@ -1,12 +1,9 @@
 services:
   db:
     image: postgres:17.5
+    # Same POSTGRES_* as the FastAPI app (./.env); official image reads these on init.
     env_file:
-      - .env.docker
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
